@@ -44,3 +44,27 @@
                 <div id="customAlert" class="hidden rounded-xl border border-rose-300/40 bg-rose-400/15 px-4 py-3 text-sm text-rose-100"></div>
                 <div id="statusMessage" class="hidden rounded-xl border border-amber-300/40 bg-amber-300/15 px-4 py-3 text-sm text-amber-100"></div>
             </aside>
+            <section class="space-y-6">
+                <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-glow backdrop-blur">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 id="locationName" class="font-display text-2xl font-semibold">Search a city to begin</h2>
+                            <p id="currentDate" class="text-sm text-slate-300">--</p>
+                        </div>
+                        <div id="weatherIcon" class="text-5xl">🌤️</div>
+                    </div>
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="metric-card"><p class="metric-label">Today's Temp</p><p id="temperatureValue" class="metric-value">--</p></div>
+                        <div class="metric-card"><p class="metric-label">Humidity</p><p id="humidityValue" class="metric-value">--</p></div>
+                        <div class="metric-card"><p class="metric-label">Wind Speed</p><p id="windValue" class="metric-value">--</p></div>
+                    </div>
+                </article>
+                <article class="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+                    <h3 class="mb-4 font-display text-xl font-semibold">5-Day Forecast</h3>
+                    <div id="forecastGrid" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"></div>
+                </article>
+            </section>
+        </section>
+    </main>
+    <script src="./app.js"></script>
+    </body></html>
