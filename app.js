@@ -82,3 +82,45 @@ function parseSafeJSON(rawValue) {
         return [];
     }
 }
+
+
+function getRecentCities() {
+    return parseSafeJSON(localStorage.getItem(RECENT_STORAGE_KEY));
+}
+
+function saveRecentCities(cities) {
+    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(cities));
+}
+
+function updateRecentCitiesDropdown() {
+    const recentCities = getRecentCities();
+    recentCitiesSelect.innerHTML = '<option value="">Select a recent city</option>';
+
+    if (recentCities.length === 0) {
+        recentWrapper.classList.add("hidden");
+        return;
+    }
+
+    recentCities.forEach((city) => {
+        const option = document.createElement("option");
+        option.value = city;
+        option.textContent = city;
+        recentCitiesSelect.appendChild(option);
+    });
+
+    recentWrapper.classList.remove("hidden");
+}
+
+function addRecentCity(city) {
+    const cleanedCity = sanitizeCityName(city);
+    const recentCities = getRecentCities();
+    const updated = [cleanedCity, ...recentCities.filter((item) => item.toLowerCase() !== cleanedCity.toLowerCase())]
+        .slice(0, MAX_RECENT_CITIES);
+
+    saveRecentCities(updated);
+    updateRecentCitiesDropdown();
+}
+
+function getWeatherMeta(weatherCode) {
+    return weatherCodeMap[weatherCode] || { label: "Unknown", icon: "🌍", rainy: false };
+}
