@@ -124,3 +124,161 @@ function addRecentCity(city) {
 function getWeatherMeta(weatherCode) {
     return weatherCodeMap[weatherCode] || { label: "Unknown", icon: "🌍", rainy: false };
 }
+
+function createRain() {
+    const oldRain = document.getElementById('rain-container');
+    if (oldRain) oldRain.remove();
+    const rainContainer = document.createElement('div');
+    rainContainer.id = 'rain-container';
+    document.body.appendChild(rainContainer);
+
+    for (let i = 0; i < 50; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'rain-drop';
+        drop.style.left = Math.random() * 100 + 'vw';
+        drop.style.animationDuration = Math.random() * 1 + 0.5 + 's';
+        drop.style.opacity = Math.random();
+        rainContainer.appendChild(drop);
+    }
+}
+
+
+function createLightningBolt() {
+    
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "bolt animate-bolt");
+    svg.setAttribute("width", "100");
+    svg.setAttribute("height", "400");
+    
+    svg.style.left = Math.random() * 100 + "vw";
+    
+    
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const x = 50; 
+    
+    const d = `M${x} 0 L${x-20} 100 L${x+20} 200 L${x-10} 300 L${x+10} 400`;
+    
+    path.setAttribute("d", d);
+    path.setAttribute("stroke", "white");
+    path.setAttribute("stroke-width", "4");
+    path.setAttribute("fill", "none");
+    
+    svg.appendChild(path);
+    document.body.appendChild(svg);
+
+    setTimeout(() => svg.remove(), 400);
+}
+
+
+
+function triggerLightning() {
+    let flashDiv = document.getElementById('lightning-overlay');
+    if (!flashDiv){
+        flashDiv = document.createElement('div');
+        flashDiv.id = 'lightning-overlay';
+        flashDiv.className = 'lightning-flash';
+        document.body.prepend(flashDiv);
+    }
+
+    window.currentLightning = setInterval(() => {
+        
+        flashDiv.classList.add('animate-flash');
+        setTimeout(() => flashDiv.classList.remove('animate-flash'), 500);
+
+    
+        createLightningBolt();
+        
+        
+        if (Math.random() > 0.7) {
+            setTimeout(createLightningBolt, 100);
+        }
+        
+    }, Math.random() * 4000 + 3000);
+}
+
+
+function setBackgroundTheme(isRainy, weatherCode) {
+    appBody.classList.remove("rainy-theme", "sunny-theme", "stormy-theme");
+    
+    
+    const oldRain = document.getElementById('rain-container');
+    if (oldRain) oldRain.remove();
+    if (window.currentLightning) clearInterval(window.currentLightning);
+
+    
+    if (weatherCode === 95 || isRainy) {
+        appBody.classList.add("stormy-theme");
+        createRain();      
+        triggerLightning();  
+    } 
+    
+    else if (isRainy) {
+        appBody.classList.add("rainy-theme");
+        createRain();
+    } 
+    else {
+        appBody.classList.add("sunny-theme");
+    }
+}
+
+
+function renderCurrentWeather(city, weatherData) {
+    const current = weatherData.current;
+    const daily = weatherData.daily;
+    const weatherMeta = getWeatherMeta(current.weather_code);
+
+    currentTemperatureC = current.temperature_2m;
+    locationName.textContent = `${city} • ${weatherMeta.label}`;
+    currentDate.textContent = new Date().toLocaleString("en-IN", {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    weatherIcon.textContent = weatherMeta.icon;
+    temperatureValue.textContent = formatTemp(currentTemperatureC);
+    humidityValue.textContent = `${current.relative_humidity_2m}%`;
+    windValue.textContent = `${current.wind_speed_10m} km/h`;
+
+    setBackgroundTheme(weatherMeta.rainy, current.weather_code);
+
+    if (currentTemperatureC > 40) {
+        showMessage(customAlert, "Extreme temperature alert: It's above 40°C. Stay hydrated and avoid direct sun exposure.");
+    } else {
+        hideMessage(customAlert);
+    }
+
+    renderForecastCards(daily);
+}
+
+function renderForecastCards(dailyData) {
+    forecastGrid.innerHTML = "";
+    for (let i = 0; i < 5; i += 1) {
+        const dayCode = dailyData.weather_code[i];
+        const weatherMeta = getWeatherMeta(dayCode);
+        const card = document.createElement("article");
+        card.className = "forecast-card";
+        card.style.animationDelay = `${i * 0.1}s`;
+
+        const date = new Date(dailyData.time[i]);
+        const formattedDate = date.toLocaleDateString("en-IN", {
+            weekday: "short",
+            day: "numeric",
+            month: "short"
+        });
+
+        card.innerHTML = `
+            <p class="text-sm text-slate-300">${formattedDate}</p>
+            <p class="mt-2 forecast-icon">${weatherMeta.icon}</p>
+            <div class="mt-3 space-y-1 text-sm">
+                <p>🌡️ ${dailyData.temperature_2m_max[i]}° / ${dailyData.temperature_2m_min[i]}°C</p>
+                <p>💨 ${dailyData.wind_speed_10m_max[i]} km/h</p>
+                <p>💧 ${dailyData.relative_humidity_2m_mean[i]}%</p>
+            </div>
+        `;
+        forecastGrid.appendChild(card);
+    }
+}
