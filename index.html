@@ -18,3 +18,29 @@
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body id="appBody" class="min-h-screen bg-slate-950 text-slate-100 transition-all duration-500">
+    <main class="relative mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div class="aurora-effect"></div>
+        <header class="mb-8 flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur md:flex-row md:items-center md:justify-between">
+            <div>
+                <p class="text-cyan-300">Weather Forecast Application</p>
+                <h1 class="font-display text-3xl font-semibold tracking-tight">SkyCast Dashboard</h1>
+            </div>
+            <div class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-slate-900/60 p-1">
+                <button id="celsiusBtn" class="temp-unit-btn active px-4 py-2 text-sm font-medium">°C</button>
+                <button id="fahrenheitBtn" class="temp-unit-btn px-4 py-2 text-sm font-medium">°F</button>
+            </div>
+        </header>
+        <section class="grid gap-6 lg:grid-cols-[1.1fr_1.9fr]">
+            <aside class="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+                <form id="searchForm" class="space-y-3">
+                    <input id="cityInput" type="text" placeholder="e.g. Delhi" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-2.5 text-slate-100 outline-none">
+                    <ul id="citySuggestions" class="city-suggestions hidden"></ul>
+                    <button type="submit" class="w-full rounded-xl bg-cyan-400 py-2.5 font-medium text-slate-900 mt-2">Search</button>
+                </form>
+                <button id="currentLocationBtn" class="w-full rounded-xl border border-cyan-300/50 bg-cyan-400/10 py-2.5 text-sm font-medium text-cyan-200">Use Current Location</button>
+                <div id="recentWrapper" class="hidden">
+                    <select id="recentCities" class="w-full rounded-xl border border-white/20 bg-slate-900/60 px-4 py-2.5 text-slate-100 outline-none"></select>
+                </div>
+                <div id="customAlert" class="hidden rounded-xl border border-rose-300/40 bg-rose-400/15 px-4 py-3 text-sm text-rose-100"></div>
+                <div id="statusMessage" class="hidden rounded-xl border border-amber-300/40 bg-amber-300/15 px-4 py-3 text-sm text-amber-100"></div>
+            </aside>
