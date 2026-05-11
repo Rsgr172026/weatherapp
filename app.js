@@ -548,3 +548,186 @@ function getBestEffortPosition({
         }
     });
 }
+
+
+async function renderWeatherFromPosition(position, statusLabel = "Location updated.") {
+    const { latitude, longitude, accuracy } = position.coords;
+    const weather = await fetchWeatherByCoordinates(latitude, longitude);
+
+    let placeName = "Current Location";
+    if (accuracy <= 15000) {
+        try {
+            const resolvedName = await fetchLocationNameByCoordinates(latitude, longitude);
+            if (resolvedName && resolvedName.trim()) {
+                placeName = resolvedName;
+            }
+        } catch (error) {
+            placeName = "Current Location";
+        }
+    } else {
+        placeName = "Near your current area";
+    }
+
+    renderCurrentWeather(placeName, weather);
+    addRecentCity(placeName);
+    showMessage(statusMessage, `${statusLabel} (~${Math.round(accuracy)} m accuracy)`);
+}
+
+async function loadWeatherByCity(city) {
+    hideMessage(customAlert);
+    hideMessage(statusMessage);
+    const cleanedCity = sanitizeCityName(city);
+
+    if (!cleanedCity) {
+        showMessage(statusMessage, "Please enter a city name before searching.");
+        return;
+    }
+
+    try {
+        showMessage(statusMessage, "Fetching weather data...");
+        const cityData = await fetchCityCoordinates(cleanedCity);
+        const weather = await fetchWeatherByCoordinates(cityData.latitude, cityData.longitude);
+        renderCurrentWeather(cityData.name, weather);
+        addRecentCity(cityData.name);
+        hideMessage(statusMessage);
+    } catch (error) {
+        showMessage(statusMessage, error.message || "Something went wrong. Please try again.");
+    }
+}
+
+async function requestUserLocationWeather() {
+    hideMessage(customAlert);
+    hideMessage(statusMessage);
+
+    if (!navigator.geolocation) {
+        showMessage(statusMessage, "Geolocation is not supported in this browser.");
+        return;
+    }
+
+    try {
+        showMessage(statusMessage, "Getting your location quickly...");
+        const quickPosition = await getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
+
+        await renderWeatherFromPosition(quickPosition, "Location found");
+
+    
+        if (quickPosition.coords.accuracy > 200) {
+            showMessage(statusMessage, "Improving location accuracy...");
+            try {
+                const refinedPosition = await getBestEffortPosition({
+                    totalDurationMs: 6000,
+                    desiredAccuracyM: 80
+                });
+
+                const improvedEnough =
+                    refinedPosition.coords.accuracy + 100 < quickPosition.coords.accuracy;
+
+                if (improvedEnough) {
+                    await renderWeatherFromPosition(refinedPosition, "Accuracy improved");
+                }
+            } catch (error) {
+                
+            }
+        }
+
+        setTimeout(() => hideMessage(statusMessage), 1800);
+    } catch (error) {
+        if (error.code === error.PERMISSION_DENIED) {
+            showMessage(statusMessage, "Location permission denied. Please allow access and try again.");
+            return;
+        }
+        showMessage(statusMessage, "Could not get your location quickly. Please search by city instead.");
+    }
+}
+
+function handleUnitSwitch(unit) {
+    selectedUnit = unit;
+    celsiusBtn.classList.toggle("active", unit === "C");
+    fahrenheitBtn.classList.toggle("active", unit === "F");
+    temperatureValue.textContent = formatTemp(currentTemperatureC);
+}
+
+searchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    hideSuggestions();
+    loadWeatherByCity(cityInput.value);
+});
+
+cityInput.addEventListener("input", () => {
+    const query = cityInput.value;
+    if (suggestionDebounceId) {
+        clearTimeout(suggestionDebounceId);
+    }
+
+    suggestionDebounceId = setTimeout(() => {
+        updateCitySuggestions(query);
+    }, 250);
+});
+
+cityInput.addEventListener("keydown", (event) => {
+    const items = citySuggestions.querySelectorAll(".city-suggestion-item");
+    if (!items.length || citySuggestions.classList.contains("hidden")) return;
+
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const nextIndex = activeSuggestionIndex >= items.length - 1 ? 0 : activeSuggestionIndex + 1;
+        setActiveSuggestion(nextIndex);
+        return;
+    }
+
+    if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const prevIndex = activeSuggestionIndex <= 0 ? items.length - 1 : activeSuggestionIndex - 1;
+        setActiveSuggestion(prevIndex);
+        return;
+    }
+
+    if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+        event.preventDefault();
+        const selectedItem = items[activeSuggestionIndex];
+        const selectedSearchName = selectedItem?.dataset.searchName;
+        const selectedDisplayLabel = selectedItem?.dataset.displayLabel;
+        if (selectedSearchName) {
+            chooseSuggestion(selectedSearchName, selectedDisplayLabel || selectedSearchName);
+        }
+        return;
+    }
+
+    if (event.key === "Escape") {
+        hideSuggestions();
+    }
+});
+
+cityInput.addEventListener("blur", () => {
+    setTimeout(() => hideSuggestions(), 120);
+});
+
+cityInput.addEventListener("focus", () => {
+    if (sanitizeCityName(cityInput.value).length >= 2) {
+        updateCitySuggestions(cityInput.value);
+    }
+});
+
+document.addEventListener("click", (event) => {
+    if (!citySuggestions.contains(event.target) && event.target !== cityInput) {
+        hideSuggestions();
+    }
+});
+
+currentLocationBtn.addEventListener("click", requestUserLocationWeather);
+
+recentCitiesSelect.addEventListener("change", () => {
+    const city = recentCitiesSelect.value;
+    if (city) {
+        loadWeatherByCity(city);
+    }
+});
+
+celsiusBtn.addEventListener("click", () => handleUnitSwitch("C"));
+fahrenheitBtn.addEventListener("click", () => handleUnitSwitch("F"));
+
+updateRecentCitiesDropdown();
