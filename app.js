@@ -383,3 +383,168 @@ function renderSuggestions(suggestions) {
 
     citySuggestions.classList.remove("hidden");
 }
+
+
+async function updateCitySuggestions(query) {
+    const trimmedQuery = sanitizeCityName(query);
+    latestSuggestionQuery = trimmedQuery;
+
+    if (trimmedQuery.length < 2) {
+        hideSuggestions();
+        return;
+    }
+
+    if (suggestionAbortController) {
+        suggestionAbortController.abort();
+    }
+    suggestionAbortController = new AbortController();
+
+    try {
+        const geoUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
+        geoUrl.searchParams.set("name", trimmedQuery);
+        geoUrl.searchParams.set("count", "6");
+        geoUrl.searchParams.set("language", "en");
+        geoUrl.searchParams.set("format", "json");
+
+        const response = await fetch(geoUrl, { signal: suggestionAbortController.signal });
+        if (!response.ok) {
+            throw new Error("Unable to fetch suggestions right now.");
+        }
+
+        const data = await response.json();
+        const suggestions = Array.isArray(data.results) ? data.results : [];
+
+        if (latestSuggestionQuery !== trimmedQuery) return;
+        renderSuggestions(suggestions);
+    } catch (error) {
+        if (error.name !== "AbortError") {
+            hideSuggestions();
+        }
+    }
+}
+
+async function fetchLocationNameByCoordinates(latitude, longitude) {
+    const openMeteoReverseUrl = new URL("https://geocoding-api.open-meteo.com/v1/reverse");
+    openMeteoReverseUrl.searchParams.set("latitude", latitude);
+    openMeteoReverseUrl.searchParams.set("longitude", longitude);
+    openMeteoReverseUrl.searchParams.set("count", "1");
+    openMeteoReverseUrl.searchParams.set("language", "en");
+    openMeteoReverseUrl.searchParams.set("format", "json");
+
+    try {
+        const response = await fetch(openMeteoReverseUrl);
+        if (response.ok) {
+            const data = await response.json();
+            const openMeteoName = data.results?.[0]?.name;
+            if (openMeteoName) {
+                return openMeteoName;
+            }
+        }
+    } catch (error) {
+        
+    }
+
+    
+    const nominatimUrl = new URL("https://nominatim.openstreetmap.org/reverse");
+    nominatimUrl.searchParams.set("lat", latitude);
+    nominatimUrl.searchParams.set("lon", longitude);
+    nominatimUrl.searchParams.set("format", "jsonv2");
+    nominatimUrl.searchParams.set("accept-language", "en");
+    nominatimUrl.searchParams.set("addressdetails", "1");
+    nominatimUrl.searchParams.set("zoom", "12");
+
+    try {
+        const fallbackResponse = await fetch(nominatimUrl);
+        if (!fallbackResponse.ok) {
+            return "Current Location";
+        }
+
+        const fallbackData = await fallbackResponse.json();
+        const address = fallbackData.address || {};
+        return (
+            address.city ||
+            address.town ||
+            address.village ||
+            address.municipality ||
+            address.city_district ||
+            address.suburb ||
+            address.state_district ||
+            fallbackData.name ||
+            "Current Location"
+        );
+    } catch (error) {
+        return "Current Location";
+    }
+}
+
+function getCurrentPosition(options) {
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+}
+
+function getBestEffortPosition({
+    totalDurationMs = 8000,
+    desiredAccuracyM = 100
+} = {}) {
+    return new Promise((resolve, reject) => {
+        const collected = [];
+        let settled = false;
+        let watchId = null;
+
+        const finishWithBest = () => {
+            if (settled) return;
+            settled = true;
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+
+            if (collected.length === 0) {
+                const error = new Error("Could not get your location.");
+                error.code = 2;
+                reject(error);
+                return;
+            }
+
+            collected.sort((a, b) => a.coords.accuracy - b.coords.accuracy);
+            resolve(collected[0]);
+        };
+
+        const timeoutId = setTimeout(() => {
+            finishWithBest();
+        }, totalDurationMs);
+
+        const onSuccess = (position) => {
+            collected.push(position);
+
+            if (position.coords.accuracy <= desiredAccuracyM) {
+                clearTimeout(timeoutId);
+                finishWithBest();
+            }
+        };
+
+        const onError = (error) => {
+            if (error.code === error.PERMISSION_DENIED) {
+                clearTimeout(timeoutId);
+                if (!settled) {
+                    settled = true;
+                    if (watchId !== null) {
+                        navigator.geolocation.clearWatch(watchId);
+                    }
+                    reject(error);
+                }
+            }
+        };
+
+        try {
+            watchId = navigator.geolocation.watchPosition(onSuccess, onError, {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
+            });
+        } catch (error) {
+            clearTimeout(timeoutId);
+            reject(error);
+        }
+    });
+}
