@@ -282,3 +282,104 @@ function renderForecastCards(dailyData) {
         forecastGrid.appendChild(card);
     }
 }
+
+
+async function fetchWeatherByCoordinates(latitude, longitude) {
+    const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
+    weatherUrl.searchParams.set("latitude", latitude);
+    weatherUrl.searchParams.set("longitude", longitude);
+    weatherUrl.searchParams.set("current", "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m");
+    weatherUrl.searchParams.set("daily", "weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,relative_humidity_2m_mean");
+    weatherUrl.searchParams.set("timezone", "auto");
+    weatherUrl.searchParams.set("forecast_days", "5");
+
+    const response = await fetch(weatherUrl);
+    if (!response.ok) {
+        throw new Error("Unable to fetch weather data right now.");
+    }
+    return response.json();
+}
+
+async function fetchCityCoordinates(city) {
+    const matches = await fetchCityMatches(city, 1);
+    if (!matches.length) {
+        throw new Error("City not found. Please try another location.");
+    }
+    return matches[0];
+}
+
+async function fetchCityMatches(city, count = 6) {
+    const geoUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
+    geoUrl.searchParams.set("name", city);
+    geoUrl.searchParams.set("count", String(count));
+    geoUrl.searchParams.set("language", "en");
+    geoUrl.searchParams.set("format", "json");
+
+    const response = await fetch(geoUrl);
+    if (!response.ok) {
+        throw new Error("Failed to look up city coordinates.");
+    }
+
+    const data = await response.json();
+    return Array.isArray(data.results) ? data.results : [];
+}
+
+function hideSuggestions() {
+    citySuggestions.classList.add("hidden");
+    citySuggestions.innerHTML = "";
+    activeSuggestionIndex = -1;
+}
+
+function formatSuggestionLabel(item) {
+    const parts = [item.name];
+    if (item.admin1) parts.push(item.admin1);
+    if (item.country) parts.push(item.country);
+    return parts.join(", ");
+}
+
+function chooseSuggestion(searchName, displayLabel = searchName) {
+    cityInput.value = displayLabel;
+    hideSuggestions();
+    loadWeatherByCity(searchName);
+}
+
+function setActiveSuggestion(index) {
+    const items = citySuggestions.querySelectorAll(".city-suggestion-item");
+    items.forEach((item, itemIndex) => {
+        item.classList.toggle("active", itemIndex === index);
+    });
+    activeSuggestionIndex = index;
+}
+
+function renderSuggestions(suggestions) {
+    citySuggestions.innerHTML = "";
+
+    if (suggestions.length === 0) {
+        hideSuggestions();
+        return;
+    }
+
+    suggestions.forEach((item, index) => {
+        const label = formatSuggestionLabel(item);
+        const suggestionItem = document.createElement("li");
+        suggestionItem.className = "city-suggestion-item";
+        suggestionItem.setAttribute("role", "option");
+        suggestionItem.textContent = label;
+        suggestionItem.dataset.searchName = item.name;
+        suggestionItem.dataset.displayLabel = label;
+
+        suggestionItem.addEventListener("mousedown", (event) => {
+            // mousedown ensures click wins before input blur.
+            event.preventDefault();
+            chooseSuggestion(item.name, label);
+        });
+
+        citySuggestions.appendChild(suggestionItem);
+
+        if (index === 0) {
+            setActiveSuggestion(0);
+        }
+    });
+
+    citySuggestions.classList.remove("hidden");
+}
