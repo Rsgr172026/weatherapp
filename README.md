@@ -28,6 +28,13 @@ It allows users to search weather by city, fetch weather for current location, v
 - Proper API and input error handling with UI messages (no JS alert)
 - Fully responsive UI (desktop, tablet, mobile)
 
+AQI (Air Quality Index) Section:
+Live AQI data with PM2.5 and PM10 measurements
+Animated breathing indicator - color changes based on air quality
+AQI bar visualization with color-coded levels (Good → Hazardous)
+Real-time status updates (Good, Moderate, Unhealthy, etc.)
+Dynamic breathing speed - faster breathing for worse air quality
+
 ## API Provider
 
 This project uses the **Open-Meteo APIs**:
